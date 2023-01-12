@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2019, 2021 Arm Limited
+ * Copyright (C) 2016-2019, 2021-2022 Arm Limited
  *
  * Author: Sakar Arora<sakar.arora@arm.com>
  *
@@ -52,7 +52,8 @@ dump_block(IOVIRT_BLOCK *block)
           sbsa_print(AVS_PRINT_INFO, "\n", 0);
           return;
       case ACPI_IORT_NODE_NAMED_COMPONENT:
-          pr_info("\nNamed Component:\n Device Name:%s\n", block->data.name);
+          pr_info("\nNamed Component:\n Device Name:%s\n", block->data.named_comp.name);
+          pr_info(" CCA Attribute: 0x%x\n", block->data.named_comp.cca);
           break;
       case ACPI_IORT_NODE_PCI_ROOT_COMPLEX:
           sbsa_print(AVS_PRINT_INFO, "\nRoot Complex:\n PCI segment number:%d\n", block->data.rc.segment);
@@ -244,13 +245,15 @@ iovirt_add_block(struct acpi_table_iort *iort, struct acpi_iort_node *iort_node,
             count = &iovirt_table->num_its_groups;
             break;
         case ACPI_IORT_NODE_NAMED_COMPONENT:
-            strncpy((char*)(*data).name, (char*)((struct acpi_iort_named_component*)node_data)->device_name, 16);
+            strncpy((char*)(*data).named_comp.name, (char*)&((struct acpi_iort_named_component*)node_data)->device_name[0], 16);
+            (*data).named_comp.cca = (uint32_t)(((struct acpi_iort_named_component*)node_data)->memory_properties & IOVIRT_CCA_MASK);
             count = &iovirt_table->num_named_components;
             break;
         case ACPI_IORT_NODE_PCI_ROOT_COMPLEX:
             (*data).rc.segment = ((struct acpi_iort_root_complex*)node_data)->pci_segment_number;
             (*data).rc.cca = (uint32_t)(((struct acpi_iort_root_complex*)node_data)->memory_properties & IOVIRT_CCA_MASK);
             (*data).rc.ats_attr = ((struct acpi_iort_root_complex*)node_data)->ats_attribute;
+            (*data).rc.smmu_base = 0; /* initialize smmu_base info for root complex */
             count = &iovirt_table->num_pci_rcs;
             break;
         case ACPI_IORT_NODE_SMMU:
@@ -322,12 +325,23 @@ iovirt_add_block(struct acpi_table_iort *iort, struct acpi_iort_node *iort_node,
             * Else save NULL pointer.
             */
           temp_block = ACPI_ADD_PTR(IOVIRT_BLOCK, iovirt_table, offset);
-          (*data).rc.smmu_base = 0;
           if (((*block)->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) &&
               ((temp_block->type == ACPI_IORT_NODE_SMMU) ||
               (temp_block->type == ACPI_IORT_NODE_SMMU_V3))) {
             temp_data = &(temp_block->data);
             (*data).rc.smmu_base = (*temp_data).smmu.base;
+          }
+
+           /* If this node is a named component, Check whether it is behind a SMMU
+            * store the SMMU base in named component info structure if true, else
+            * save NULL pointer.
+            */
+          temp_block = ACPI_ADD_PTR(IOVIRT_BLOCK, iovirt_table, offset);
+          if (((*block)->type == ACPI_IORT_NODE_NAMED_COMPONENT) &&
+              ((temp_block->type == ACPI_IORT_NODE_SMMU) ||
+              (temp_block->type == ACPI_IORT_NODE_SMMU_V3))) {
+            temp_data = &(temp_block->data);
+            (*data).named_comp.smmu_base = (*temp_data).smmu.base;
           }
 
         }
@@ -483,4 +497,58 @@ pal_iovirt_get_rc_smmu_base(IOVIRT_INFO_TABLE *iovirt, uint32_t rc_seg_num, uint
    */
   sbsa_print(AVS_PRINT_DEBUG, "No SMMU found behind the RootComplex with segment :%x", rc_seg_num);
   return 0;
+}
+
+/**
+  @brief  This function is called by the val function pal_get_device_path
+          when the hid type is found
+
+  @param  handle       device handle
+  @param  level        nesting level
+  @param  context      data to be passed from caller function
+  @param  return_value return value passed to caller function pal_get_device_path
+
+  @return 1 if test fails, 0 if test passes
+**/
+acpi_status user_function(acpi_handle handle, uint32_t level,
+                   void *context, void **return_value)
+{
+  acpi_status status;
+  static uint32_t count;
+  struct acpi_buffer buffer;
+  char (*path_buffer)[MAX_NAMED_COMP_LENGTH] = context;
+
+  buffer.length = ACPI_ALLOCATE_BUFFER;
+  status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+  strncpy((char *)path_buffer[count++], (char *)(buffer.pointer), 16);
+  return status;
+}
+
+/**
+  @brief  Check the hid in ACPI and copy te full path of hid
+
+  @param  hid      hardware ID to get the path for
+  @param  hid_path 2D array in which the path is copied
+
+  @return 1 if test fails, 0 if test passes
+**/
+uint32_t
+pal_get_device_path(const char *hid, char hid_path[][MAX_NAMED_COMP_LENGTH])
+{
+    acpi_status status;
+    status = acpi_get_devices(hid, user_function, (void *)hid_path, NULL);
+    return status;
+}
+
+/**
+  @brief  Platform defined method to check if CATU is behind an ETR device
+
+  @param  etr_path  full path of ETR device
+
+  @return 0 - Success, NOT_IMPLEMENTED - API not implemented, Other values - Failure
+**/
+uint32_t
+pal_smmu_is_etr_behind_catu(char *etr_path)
+{
+    return NOT_IMPLEMENTED;
 }

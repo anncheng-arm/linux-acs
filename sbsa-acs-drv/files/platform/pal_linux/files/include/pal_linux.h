@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/acpi_iort.h>
 #include "val/include/pal_interface.h"
 
 #define PAL_LINUX_SUCCESS  0x0
@@ -51,6 +52,14 @@ uint64_t pal_get_iort_ptr(void);
 uint64_t pal_get_mcfg_ptr(void);
 
 uint64_t pal_get_madt_ptr(void);
+
+#define NOT_IMPLEMENTED    0x4B1D
+
+acpi_status user_function (acpi_handle handle, uint32_t level, void *context, void **return_value);
+
+uint32_t pal_get_device_path(const char *hid, char hid_path[][MAX_NAMED_COMP_LENGTH]);
+
+uint32_t pal_smmu_is_etr_behind_catu(char *etr_path);
 
 #define MIN_NUM_MSG 20
 #define NUM_MSG_GROW(n) n*2

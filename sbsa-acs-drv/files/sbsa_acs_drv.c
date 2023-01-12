@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2020 Arm Limited
+ * Copyright (C) 2016-2020, 2022 Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *
@@ -114,6 +114,14 @@ val_glue_execute_command(void)
         val_print(AVS_PRINT_TEST, "Tests Passed = %2d, ", g_sbsa_tests_pass);
         val_print(AVS_PRINT_TEST, "Tests Failed = %2d ", g_sbsa_tests_fail);
         val_print(AVS_PRINT_TEST, "\n     ------------------------------------------------------------", 0);
+        params.arg0 = DRV_STATUS_AVAILABLE;
+        params.arg1 = val_get_status(0);
+    }
+
+    if (params.api_num == SBSA_SMMU_EXECUTE_TEST)
+    {
+        params.arg0 = DRV_STATUS_PENDING;
+        val_smmu_execute_tests(params.level, params.num_pe);
         params.arg0 = DRV_STATUS_AVAILABLE;
         params.arg1 = val_get_status(0);
     }
