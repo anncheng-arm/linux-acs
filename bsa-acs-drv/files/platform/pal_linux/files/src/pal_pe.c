@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2018, 2021 Arm Limited
+ * Copyright (C) 2016-2018, 2021, 2023 Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *
@@ -108,7 +108,7 @@ pal_pe_data_cache_ops_by_va(unsigned long long addr, unsigned type)
   @return  None
 **/
 void
-pal_pe_call_smc(ARM_SMC_ARGS *ArmSmcArgs)
+pal_pe_call_smc(ARM_SMC_ARGS *ArmSmcArgs, int32_t conduit)
 {
 }
 
@@ -164,6 +164,12 @@ pal_pe_get_far(void *context)
 **/
 unsigned long long
 pal_pe_get_esr(void *context)
+{
+  return 0;
+}
+
+int32_t
+pal_psci_get_conduit (void)
 {
   return 0;
 }
