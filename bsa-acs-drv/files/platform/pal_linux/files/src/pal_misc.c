@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2022 Arm Limited
+ * Copyright (C) 2016-2023 Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *
@@ -457,7 +457,7 @@ void *
 pal_aligned_alloc(uint32_t alignment, uint32_t size)
 {
   void *Mem = NULL;
-  void *Aligned_Ptr = NULL;
+  void **Aligned_Ptr = NULL;
 
   /* Generate mask for the Alignment parameter*/
   uint64_t Mask = ~(uint64_t)(alignment - 1);
@@ -469,7 +469,23 @@ pal_aligned_alloc(uint32_t alignment, uint32_t size)
     return 0;
 
   /* Add the alignment to allocated memory address and align it to target alignment*/
-  Aligned_Ptr = (void *)(((uint64_t) Mem + alignment-1) & Mask);
+  Aligned_Ptr = (void **)(((uint64_t) Mem + alignment-1) & Mask);
+
+  /* Using a double pointer to store the address of allocated
+     memory location so that it can be used to free the memory later */
+  Aligned_Ptr[-1] = Mem;
 
   return Aligned_Ptr;
+}
+
+/**
+  @brief  Free the aligned memory allocated
+  @param  Buffer the base address of the memory range to be freed
+
+  @return None
+**/
+void pal_mem_free_aligned(void *buffer)
+{
+
+  kfree(((void **)buffer)[-1]);
 }

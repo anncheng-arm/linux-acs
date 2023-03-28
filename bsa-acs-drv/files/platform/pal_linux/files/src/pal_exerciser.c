@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2021 Arm Limited
+ * Copyright (C) 2016-2021,2023 Arm Limited
  *
  */
 
@@ -119,3 +119,21 @@ uint32_t pal_exerciser_get_data(EXERCISER_DATA_TYPE type, exerciser_data_t *data
 {
 	return 0;
 }
+
+/**
+    @brief   Get legacy IRQ routing for a PCI device
+
+    @param   bus        PCI bus address
+    @param   dev        PCI device address
+    @param   fn         PCI function number
+    @param   irq_map    pointer to IRQ map structure
+
+    @return  irq_map    IRQ routing map
+    @return  status code
+**/
+uint32_t
+pal_exerciser_get_legacy_irq_map(uint32_t Seg, uint32_t Bus, uint32_t Dev, uint32_t Fn, PERIPHERAL_IRQ_MAP *IrqMap)
+{
+ return 0;
+}
+

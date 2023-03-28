@@ -35,7 +35,8 @@ static int len = 0;
 
 unsigned int  g_sbsa_level = 4;
 unsigned int  g_print_level = 3;
-unsigned int  g_skip_test_num[3];
+unsigned int  *g_skip_test_num;
+unsigned int  g_num_skip = 3;
 unsigned int  g_sbsa_tests_total;
 unsigned int  g_sbsa_tests_pass;
 unsigned int  g_sbsa_tests_fail;
@@ -63,6 +64,7 @@ int
 val_glue_execute_command(void)
 {
     g_print_level = params.arg1;
+    g_skip_test_num = (unsigned int*) kmalloc(g_num_skip * sizeof(unsigned int), GFP_KERNEL);
     if (params.api_num == SBSA_CREATE_INFO_TABLES)
     {
         g_sbsa_tests_total = 0;
@@ -102,6 +104,7 @@ val_glue_execute_command(void)
         kfree(g_dma_info_ptr);
         kfree(g_iovirt_info_ptr);
         kfree(g_msg_buf);
+        kfree(g_skip_test_num);
 
     }
 

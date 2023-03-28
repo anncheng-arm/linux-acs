@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2021 Arm Limited
+ * Copyright (C) 2016-2021, 2023 Arm Limited
  *
  */
 
@@ -125,6 +125,17 @@ typedef enum {
     EXERCISER_DATA_BAR0_SPACE = 0x2,
 } EXERCISER_DATA_TYPE;
 
+#define LEGACY_PCI_IRQ_CNT 4
+#define MAX_IRQ_CNT        0xFFFF   // This value is arbitrary and may have to be adjusted
+
+typedef struct {
+  uint32_t  irq_list[MAX_IRQ_CNT];
+  uint32_t  irq_count;
+} PERIFERAL_IRQ_LIST;
+
+typedef struct {
+  PERIFERAL_IRQ_LIST  legacy_irq_map[LEGACY_PCI_IRQ_CNT];
+} PERIPHERAL_IRQ_MAP;
 
 void pal_exerciser_create_info_table(EXERCISER_INFO_TABLE *exerciser_info_table);
 uint32_t pal_exerciser_get_info(EXERCISER_INFO_TYPE type, uint32_t instance);
@@ -134,5 +145,7 @@ uint32_t pal_exerciser_set_state(EXERCISER_STATE state, uint64_t *value, uint32_
 uint32_t pal_exerciser_get_state(EXERCISER_STATE *state, uint32_t bdf);
 uint32_t pal_exerciser_ops(EXERCISER_OPS ops, uint64_t param, uint32_t instance);
 uint32_t pal_exerciser_get_data(EXERCISER_DATA_TYPE type, exerciser_data_t *data, uint32_t instance);
+uint32_t pal_exerciser_get_legacy_irq_map(uint32_t seg, uint32_t bus, uint32_t dev, uint32_t fn,
+                                                                    PERIPHERAL_IRQ_MAP *irq_map);
 
 #endif
