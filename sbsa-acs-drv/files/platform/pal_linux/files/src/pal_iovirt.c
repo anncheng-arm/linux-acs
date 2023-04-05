@@ -223,6 +223,7 @@ iovirt_add_block(struct acpi_table_iort *iort, struct acpi_iort_node *iort_node,
     NODE_DATA_MAP *data_map = &((*block)->data_map[0]);
     NODE_DATA *data = &((*block)->data);
     void *node_data = &(iort_node->node_data[0]);
+    struct acpi_iort_node *node_ref_block;
 
     pr_info("IORT node offset:%lx, type: %d\n", (uint8_t*)iort_node - (uint8_t*)iort, iort_node->type);
 
@@ -273,7 +274,15 @@ iovirt_add_block(struct acpi_table_iort *iort, struct acpi_iort_node *iort_node,
             next_block = ACPI_ADD_PTR(IOVIRT_BLOCK, data_map, (*block)->num_data_map * sizeof(NODE_DATA_MAP));
             offset = iovirt_add_block(iort, ACPI_ADD_PTR(struct acpi_iort_node, iort, (*data).pmcg.node_ref),
                                     iovirt_table, &next_block);
-            (*data).pmcg.node_ref = offset;
+            /* if the PMCG node is associated with a SMMU, store SMMU base */
+            node_ref_block = ACPI_ADD_PTR(struct acpi_iort_node, iort, (*data).pmcg.node_ref);
+            if (node_ref_block->type == ACPI_IORT_NODE_SMMU
+                            || node_ref_block->type == ACPI_IORT_NODE_SMMU_V3) {
+                (*data).pmcg.smmu_base = ((struct acpi_iort_smmu *)node_ref_block->node_data)->base_address;
+            }
+            else {
+                (*data).pmcg.smmu_base = 0;
+            }
             count = &iovirt_table->num_pmcgs;
             break;
         default:
