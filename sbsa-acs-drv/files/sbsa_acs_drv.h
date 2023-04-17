@@ -47,7 +47,6 @@
 #define PCIE_INFO_TBL_SZ           1024
 #define DMA_INFO_TBL_SZ            1024
 
-#define AVS_PCIE_RCiEP_DISABLE     0
 typedef
 struct __TEST_PARAMS__
 {

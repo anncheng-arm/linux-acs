@@ -137,7 +137,7 @@ val_glue_execute_command(void)
     if (params.api_num == SBSA_PCIE_EXECUTE_TEST)
     {
         params.arg0 = DRV_STATUS_PENDING;
-        val_pcie_execute_tests(AVS_PCIE_RCiEP_DISABLE, params.level, params.num_pe);
+        val_pcie_execute_tests(params.level, params.num_pe);
         val_print(AVS_PRINT_TEST, "\n     ------------------------------------------------------------", 0);
         val_print(AVS_PRINT_TEST, "\n      Total Tests Run = %2d, ", g_sbsa_tests_total);
         val_print(AVS_PRINT_TEST, "Tests Passed = %2d, ", g_sbsa_tests_pass);
