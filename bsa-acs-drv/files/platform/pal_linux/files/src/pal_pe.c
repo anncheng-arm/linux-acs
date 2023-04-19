@@ -43,6 +43,8 @@ pal_pe_create_info_table(PE_INFO_TABLE *PeTable)
   struct acpi_table_madt             *madt;
   struct acpi_madt_generic_interrupt *entry;
 
+  /* initialise number of PEs to zero */
+  PeTable->header.num_of_pe = 0;
 
   madt = (struct acpi_table_madt *)pal_get_madt_ptr();
 
@@ -56,7 +58,6 @@ pal_pe_create_info_table(PE_INFO_TABLE *PeTable)
   table_length = madt->header.length;
   length = sizeof(struct acpi_table_madt);
   entry = (struct acpi_madt_generic_interrupt *) &madt[1];
-  PeTable->header.num_of_pe = 0;
   ptr = PeTable->pe_info;
 
   do {

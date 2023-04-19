@@ -63,6 +63,7 @@ extern int num_msg;
 int
 val_glue_execute_command(void)
 {
+    uint32_t status = 0;
     g_print_level = params.arg1;
     g_skip_test_num = (unsigned int*) kmalloc(g_num_skip * sizeof(unsigned int), GFP_KERNEL);
     if (params.api_num == SBSA_CREATE_INFO_TABLES)
@@ -75,8 +76,12 @@ val_glue_execute_command(void)
         g_msg_buf = (char*) kmalloc(num_msg * sizeof(test_msg_parms_t), GFP_KERNEL);
 
         g_pe_info_ptr = kmalloc(PE_INFO_TBL_SZ, GFP_KERNEL);
-        val_pe_create_info_table(g_pe_info_ptr);
-
+        status = val_pe_create_info_table(g_pe_info_ptr);
+        if (status) {
+            params.arg0 = DRV_STATUS_AVAILABLE;
+            params.arg1 = status;
+            return 1;
+        }
         g_pcie_info_ptr = kmalloc(PCIE_INFO_TBL_SZ, GFP_KERNEL);
         val_pcie_create_info_table(g_pcie_info_ptr);
 
