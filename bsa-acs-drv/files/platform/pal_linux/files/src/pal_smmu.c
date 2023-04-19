@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2019,2021 Arm Limited
+ * Copyright (C) 2016-2019, 2021, 2023, Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *
@@ -109,16 +109,6 @@ pal_smmu_check_device_iova(void *port, unsigned long long dma_addr)
     } while(curr_node);
 
     return PAL_LINUX_ERR;
-}
-
-uint32_t
-pal_smmu_max_pasids(uint64_t smmu_base)
-{
-  uint32_t reg = pal_mmio_read(smmu_base + SMMU_V3_IDR1);
-  uint32_t pasid_bits = reg >> SMMU_V3_IDR1_PASID_SHIFT & SMMU_V3_IDR1_PASID_MASK;
-  if(pasid_bits == 0)
-     return 0;
-  return (1 << pasid_bits);
 }
 
 uint32_t
