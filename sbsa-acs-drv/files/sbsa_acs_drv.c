@@ -37,6 +37,8 @@ unsigned int  g_sbsa_level = 4;
 unsigned int  g_print_level = 3;
 unsigned int  *g_skip_test_num;
 unsigned int  g_num_skip = 3;
+unsigned int  *g_execute_tests;
+unsigned int  *g_execute_modules;
 unsigned int  g_sbsa_tests_total;
 unsigned int  g_sbsa_tests_pass;
 unsigned int  g_sbsa_tests_fail;
@@ -47,8 +49,12 @@ unsigned int g_print_mmio;
 unsigned int g_curr_module;
 unsigned int g_enable_module;
 
-unsigned int g_single_test = SINGLE_TEST_SENTINEL;
-unsigned int g_single_module = SINGLE_MODULE_SENTINEL;
+/* Fill in the array to run only specific tests or modules */
+unsigned int g_specific_tests[] = {};
+unsigned int g_specific_modules[] = {};
+
+uint32_t  g_num_tests        = sizeof(g_specific_tests)/sizeof(unsigned int);
+uint32_t  g_num_modules      = sizeof(g_specific_modules)/sizeof(unsigned int);
 
 uint64_t  *g_pe_info_ptr;
 uint64_t  *g_pcie_info_ptr;
@@ -65,7 +71,14 @@ val_glue_execute_command(void)
 {
     uint32_t status = 0;
     g_print_level = params.arg1;
-    g_skip_test_num = (unsigned int*) kmalloc(g_num_skip * sizeof(unsigned int), GFP_KERNEL);
+    if (g_num_tests) {
+        g_execute_tests = g_specific_tests;
+    }
+
+    if (g_num_modules) {
+        g_execute_modules = g_specific_modules;
+    }
+
     if (params.api_num == SBSA_CREATE_INFO_TABLES)
     {
         g_sbsa_tests_total = 0;
@@ -148,6 +161,7 @@ val_glue_execute_command(void)
     }
 
     if(params.api_num == SBSA_UPDATE_SKIP_LIST){
+        g_skip_test_num = (unsigned int*) kmalloc(g_num_skip * sizeof(unsigned int), GFP_KERNEL);
         g_skip_test_num[0] = params.arg0;
         g_skip_test_num[1] = params.arg1;
         g_skip_test_num[2] = params.arg2;

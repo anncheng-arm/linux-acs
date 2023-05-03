@@ -66,7 +66,6 @@ val_glue_execute_command(void)
 {
     uint32_t status = 0;
     g_print_level = params.arg1;
-    g_skip_test_num = (unsigned int*) kmalloc(g_num_skip * sizeof(unsigned int), GFP_KERNEL);
     if (params.api_num == BSA_CREATE_INFO_TABLES)
     {
         g_bsa_tests_total = 0;
@@ -159,6 +158,7 @@ val_glue_execute_command(void)
     }
 
     if(params.api_num == BSA_UPDATE_SKIP_LIST){
+        g_skip_test_num = (unsigned int*) kmalloc(g_num_skip * sizeof(unsigned int), GFP_KERNEL);
         g_skip_test_num[0] = params.arg0;
         g_skip_test_num[1] = params.arg1;
         g_skip_test_num[2] = params.arg2;
