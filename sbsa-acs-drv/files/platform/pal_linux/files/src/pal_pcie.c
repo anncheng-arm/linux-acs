@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2022 Arm Limited
+ * Copyright (C) 2016-2023, Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *         Daniil Egranov <daniil.egranov@arm.com>
@@ -713,4 +713,36 @@ pal_pcie_mem_get_offset(uint32_t type)
 {
 
   return 0;
+}
+
+/**
+    @brief   Reads 32-bit data from BAR space pointed by Bus,
+             Device, Function and register offset.
+
+    @param   Bdf     - BDF value for the device
+    @param   address - BAR memory address
+    @param   *data   - 32 bit value at BAR address
+    @return  success/failure
+**/
+uint32_t
+pal_pcie_bar_mem_read(uint32_t Bdf, uint64_t address, uint32_t *data)
+{
+  *data = pal_mmio_read(address);
+   return 0;
+}
+
+/**
+    @brief   Write 32-bit data to BAR space pointed by Bus,
+             Device, Function and register offset.
+
+    @param   Bdf     - BDF value for the device
+    @param   address - BAR memory address
+    @param   data    - 32 bit value to writw BAR address
+    @return  success/failure
+**/
+uint32_t
+pal_pcie_bar_mem_write(uint32_t Bdf, uint64_t address, uint32_t data)
+{
+   pal_mmio_write(address, data);
+   return 0;
 }
