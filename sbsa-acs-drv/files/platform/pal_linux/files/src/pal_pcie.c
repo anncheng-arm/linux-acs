@@ -369,42 +369,6 @@ pal_pcie_device_driver_present(uint32_t seg, uint32_t bus, uint32_t dev, uint32_
 }
 
 /**
-    @brief   This API scans bridge devices and checks memory type
-
-    @param   bus        PCI bus address
-    @param   dev        PCI device address
-    @param   fn         PCI function number
-    @param   seg        PCI segment number
-
-    @return  0 -> 32-bit mem type, 1 -> 64-bit mem type
-**/
-uint32_t pal_pcie_scan_bridge_devices_and_check_memtype(uint32_t seg, uint32_t bus,
-                                                        uint32_t dev,uint32_t fn)
-{
-    struct pci_dev *pdev;
-    struct pci_dev *child_dev;
-    uint16_t data = 0;
-    uint32_t status = 0;
-    uint8_t mem_type;
-
-    pdev = pci_get_domain_bus_and_slot(seg, bus, PCI_DEVFN(dev, fn));
-
-    list_for_each_entry(child_dev, &pdev->subordinate->devices, bus_list) {
-        if (child_dev) {
-            pci_read_config_word(child_dev, 0x10, &data);
-            if (data) {
-                mem_type = data & 0x6;
-                if (mem_type != 0) {
-                    status = 1;
-                    break;
-                }
-            }
-        }
-    }
-    return status;
-}
-
-/**
     @brief   Get bdf of root port
 
     @param   bus        PCI bus address
@@ -437,35 +401,6 @@ pal_pcie_get_root_port_bdf(uint32_t *seg, uint32_t *bus, uint32_t *dev, uint32_t
   *func = PCI_FUNC(root_port->devfn);
   *seg  = pci_domain_nr(root_port->bus);
   return 0;
-}
-/**
-    @brief   Get the PCIe device type
-
-    @param   bus        PCI bus address
-    @param   dev        PCI device address
-    @param   fn         PCI function number
-
-    @return  staus code:
-             1: Normal PCIe device, 2: PCIe Host bridge,
-             3: PCIe bridge device, else: INVALID
-**/
-uint32_t
-pal_pcie_get_device_type(uint32_t seg, uint32_t bus, uint32_t dev, uint32_t fn)
-{
-  struct pci_dev *pdev;
-  u16 class;
-
-  pdev = pci_get_domain_bus_and_slot(seg, bus, PCI_DEVFN(dev, fn));
-  if(pdev == NULL)
-    return 0;
-  class = pdev->class >> 8;
-
-  if(class == PCI_CLASS_BRIDGE_HOST)
-	return 2;
-  if(!pci_is_bridge(pdev))
-    return 1;
-  else
-    return 3;
 }
 
 /**
