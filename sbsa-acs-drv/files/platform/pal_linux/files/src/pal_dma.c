@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2018, 2021 Arm Limited
+ * Copyright (C) 2016-2018, 2021, 2023, Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *
@@ -158,7 +158,11 @@ pal_dma_start_from_device(void *dma_target_buf, unsigned int length,
         int result;
         struct scsi_sense_hdr sshdr;
         struct scsi_device *sdev = (struct scsi_device *)dev;
-
+#if LINUX_VERSION_CODE > KERNEL_VERSION(6,2,0)
+        const struct scsi_exec_args exec_args = {
+            .sshdr = &sshdr,
+        };
+#endif
 
         memset(&scsi_cmd[0], 0, 15);
         scsi_cmd[0] = READ_10;
@@ -172,9 +176,15 @@ pal_dma_start_from_device(void *dma_target_buf, unsigned int length,
         scsi_cmd[10] = 0;       /* reserved */
         scsi_cmd[11] = 0;       /* control */
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(6,2,0)
+        result = scsi_execute_cmd(sdev, scsi_cmd, DMA_FROM_DEVICE,
+                                          dma_target_buf, length,
+                                          10000, 3, &exec_args);
+#else
         result = scsi_execute_req(sdev, scsi_cmd, DMA_FROM_DEVICE,
                                           dma_target_buf, length, &sshdr,
                                           10000, 3, NULL);
+#endif
 
         return result;
 }
@@ -193,8 +203,13 @@ pal_dma_start_to_device(void *dma_source_buf, unsigned int length,
         cmd[0] = WRITE_10;
         cmd[8] = 1;  //one block only for now
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(6,2,0)
+        ret = scsi_execute_cmd(sdev, cmd, DMA_TO_DEVICE, dma_source_buf, length,
+                               timeout, 1, NULL);
+#else
         ret = scsi_execute_req(sdev, cmd, DMA_TO_DEVICE, dma_source_buf, length,
                                NULL, timeout, 1, NULL);
+#endif
 
         return 0;
 }
