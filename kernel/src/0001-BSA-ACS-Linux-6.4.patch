@@ -1,4 +1,4 @@
-From db62f0a6353488714cb37ff96cfd46e6f026b801 Mon Sep 17 00:00:00 2001
+From ec192acb70a10f30993770c3ab87a64e31c1e460 Mon Sep 17 00:00:00 2001
 From: gurrev01 <gururaj.revankar@arm.com>
 Date: Mon, 7 Aug 2023 16:39:59 +0530
 Subject: [PATCH] BSA ACS Linux 6.4
@@ -8,6 +8,7 @@ Added support for acs_forcevamap parameter
 
 Signed-off-by: gurrev01 <gururaj.revankar@arm.com>
 Signed-off-by: G Edhaya Chandran <edhaya.chandran@arm.com>
+Signed-off-by: Rajat Goyal <rajat.goyal@arm.com>
 ---
  .../admin-guide/kernel-parameters.txt         |   3 +-
  drivers/ata/libahci.c                         |   3 +
@@ -16,7 +17,7 @@ Signed-off-by: G Edhaya Chandran <edhaya.chandran@arm.com>
  drivers/firmware/efi/libstub/efistub.h        |   1 +
  drivers/firmware/efi/libstub/fdt.c            |  22 +-
  drivers/iommu/Makefile                        |   1 +
- drivers/iommu/bsa-dma-iommu.c                 | 237 ++++++++++++++++++
+ drivers/iommu/bsa-dma-iommu.c                 | 238 ++++++++++++++++++
  drivers/iommu/dma-iommu.c                     |   7 +
  drivers/iommu/iommu.c                         |   3 +
  drivers/irqchip/irq-gic-v3.c                  |  15 ++
@@ -25,7 +26,7 @@ Signed-off-by: G Edhaya Chandran <edhaya.chandran@arm.com>
  include/linux/irqdomain.h                     |   2 +
  kernel/irq/irqdomain.c                        |   2 +-
  mm/init-mm.c                                  |   2 +
- 16 files changed, 350 insertions(+), 4 deletions(-)
+ 16 files changed, 351 insertions(+), 4 deletions(-)
  create mode 100644 drivers/iommu/bsa-dma-iommu.c
  create mode 100644 include/linux/bsa-iommu.h
 
@@ -184,10 +185,10 @@ index 769e43d780ce..ba050e3f3c3b 100644
  obj-$(CONFIG_IOMMU_IO_PGTABLE_LPAE) += io-pgtable-arm.o
 diff --git a/drivers/iommu/bsa-dma-iommu.c b/drivers/iommu/bsa-dma-iommu.c
 new file mode 100644
-index 000000000000..81a16182f947
+index 000000000000..d76ac65e5464
 --- /dev/null
 +++ b/drivers/iommu/bsa-dma-iommu.c
-@@ -0,0 +1,237 @@
+@@ -0,0 +1,238 @@
 +/*
 + * The IOMMU-API to BSA Architecture Compliance Suite glue layer.
 + *
@@ -283,12 +284,11 @@ index 000000000000..81a16182f947
 +
 +static int bsa_get_sata_dev(void)
 +{
-+    int ret = -1;
++   int ret = -1;
 +   struct Scsi_Host   *shost;
 +   struct ata_port    *ap;
 +   struct scsi_device *sdev = NULL;
 +   unsigned int i = 0;
-+    struct device *dev;
 +
 +   do {
 +       shost = scsi_host_lookup(i++);
@@ -297,6 +297,8 @@ index 000000000000..81a16182f947
 +           ap = ata_shost_to_port(shost);
 +           if ((ap == NULL) || (ap->dev == NULL))
 +               continue; //Not a ATA port
++           if ((ap->scsi_host == NULL) || (ap->scsi_host != shost))
++               continue; //Not a valid ATA Port
 +           do {
 +               /* get the device connected to this host */
 +               sdev = __scsi_iterate_devices(shost, sdev);
@@ -425,7 +427,6 @@ index 000000000000..81a16182f947
 +        bsa_dma_len  = cpu_to_le32(sg_dma_len(sg));
 +}
 +EXPORT_SYMBOL(bsa_scsi_sata_fill_dma_addr);
-\ No newline at end of file
 diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
 index 7a9f0b0bddbd..788b421b7745 100644
 --- a/drivers/iommu/dma-iommu.c
@@ -620,5 +621,5 @@ index efa97b57acfd..b9f87d25dd4d 100644
  void setup_initial_init_mm(void *start_code, void *end_code,
  			   void *end_data, void *brk)
 -- 
-2.25.1
+2.17.1
 
