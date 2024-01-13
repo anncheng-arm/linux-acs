@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2023, Arm Limited
+ * Copyright (C) 2016-2024, Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *         Daniil Egranov <daniil.egranov@arm.com>
@@ -41,7 +41,7 @@
 **/
 
 static
-uint32_t irq_to_hwirq(uint32_t irq)
+uint64_t irq_to_hwirq(uint32_t irq)
 {
   struct irq_data *d = irq_get_irq_data(irq);
   if (d)
