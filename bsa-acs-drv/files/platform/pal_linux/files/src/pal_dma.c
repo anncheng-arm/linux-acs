@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2018,2021,2023, Arm Limited
+ * Copyright (C) 2016-2018,2021,2023-2024 Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *
@@ -121,6 +121,8 @@ pal_dma_create_info_table(DMA_INFO_TABLE *dma_info_table)
 			ap = ata_shost_to_port(shost);
 			if ((ap == NULL) || (ap->dev == NULL))
 				continue; //Not a ATA port
+                        if ((ap->scsi_host == NULL) || (ap->scsi_host != shost))
+                                continue; //Not a valid ATA Port
 			do {
 				/* get the device connected to this host */
 				sdev = __scsi_iterate_devices(shost, sdev);

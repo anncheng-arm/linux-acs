@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) 2016-2021 Arm Limited
+ * Copyright (C) 2016-2024 Arm Limited
  *
  * Author: Prasanth Pulla <prasanth.pulla@arm.com>
  *
@@ -39,15 +39,12 @@
 #define DRV_STATUS_AVAILABLE     0x10000000
 #define DRV_STATUS_PENDING       0x40000000
 
-#define PE_INFO_TBL_SZ             8192
-#define GIC_INFO_TBL_SZ            2048
-#define TIMER_INFO_TBL_SZ          1024
-#define WD_INFO_TBL_SZ             512
-#define MEM_INFO_TBL_SZ            4096
-#define IOVIRT_INFO_TBL_SZ         32768
-#define PERIPHERAL_INFO_TBL_SZ     2883584
-#define PCIE_INFO_TBL_SZ           1024
-#define DMA_INFO_TBL_SZ            1024
+/* Please MAKE SURE all table sizes are 16 bytes aligned */
+#define PE_INFO_TBL_SZ             16384    /* Supports maximum 400 PEs [40 B each + 4 B header] */
+#define IOVIRT_INFO_TBL_SZ         1048576  /* Supports maximum 2400 iort nodes [268+32*5 B each + 24 B header] */
+#define PERIPHERAL_INFO_TBL_SZ     8192     /* Supports maximum 145 PCIe peripheral device (anykind) [56 B each + 16 B header] */
+#define PCIE_INFO_TBL_SZ           512      /* Supports maximum 20 PCIe ECAM block [24 B each + 4 B header] */
+#define DMA_INFO_TBL_SZ            1024     /* Supports maximum 30 DMA ctrl [32 B each + 4 B header] */
 
 #define ACS_PCIE_RCiEP_DISABLE     0
 typedef
