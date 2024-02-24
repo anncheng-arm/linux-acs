@@ -685,7 +685,7 @@ pal_pcie_check_device_list()
   @return memory offset
 **/
 uint32_t
-pal_pcie_mem_get_offset(uint32_t bdf, uint32_t mem_type)
+pal_pcie_mem_get_offset(uint32_t bdf, PCIE_MEM_TYPE_INFO_e mem_type)
 {
 
   return 0;
