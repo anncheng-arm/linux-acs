@@ -1,0 +1,621 @@
+From 33ea885a6c7316622ef8ecef86b2d6ca02cc1432 Mon Sep 17 00:00:00 2001
+From: Guru9902 <gururaj.revankar@arm.com>
+Date: Fri, 15 Mar 2024 06:02:21 +0000
+Subject: [PATCH] BSA ACS Linux 6.6
+
+Signed-off-by: Guru9902 <gururaj.revankar@arm.com>
+---
+ .../admin-guide/kernel-parameters.txt         |   3 +-
+ drivers/ata/libahci.c                         |   3 +
+ drivers/ata/sata_sil24.c                      |   3 +
+ .../firmware/efi/libstub/efi-stub-helper.c    |   2 +
+ drivers/firmware/efi/libstub/efistub.h        |   1 +
+ drivers/firmware/efi/libstub/fdt.c            |  21 +-
+ drivers/iommu/Makefile                        |   1 +
+ drivers/iommu/bsa-dma-iommu.c                 | 238 ++++++++++++++++++
+ drivers/iommu/dma-iommu.c                     |   8 +
+ drivers/iommu/iommu.c                         |   4 +
+ drivers/irqchip/irq-gic-v3.c                  |  14 ++
+ drivers/of/base.c                             |   1 +
+ include/linux/bsa-iommu.h                     |  50 ++++
+ include/linux/irqdomain.h                     |   2 +
+ kernel/irq/irqdomain.c                        |   2 +-
+ mm/init-mm.c                                  |   2 +
+ 16 files changed, 351 insertions(+), 4 deletions(-)
+ create mode 100644 drivers/iommu/bsa-dma-iommu.c
+ create mode 100644 include/linux/bsa-iommu.h
+
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index a6c7433f2ab2..38fd0ac219c5 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -1379,7 +1379,7 @@
+ 	efi=		[EFI]
+ 			Format: { "debug", "disable_early_pci_dma",
+ 				  "nochunk", "noruntime", "nosoftreserve",
+-				  "novamap", "no_disable_early_pci_dma" }
++				  "novamap","acsforcevamap","no_disable_early_pci_dma" }
+ 			debug: enable misc debug output.
+ 			disable_early_pci_dma: disable the busmaster bit on all
+ 			PCI bridges while in the EFI boot stub.
+@@ -1394,6 +1394,7 @@
+ 			reservation and treat the memory by its base type
+ 			(i.e. EFI_CONVENTIONAL_MEMORY / "System RAM").
+ 			novamap: do not call SetVirtualAddressMap().
++			acsforcevamap: Arm ACS, force the call of SetVirtualAddressMap().
+ 			no_disable_early_pci_dma: Leave the busmaster bit set
+ 			on all PCI bridges while in the EFI boot stub
+ 
+diff --git a/drivers/ata/libahci.c b/drivers/ata/libahci.c
+index f1263364fa97..c319f3b9218c 100644
+--- a/drivers/ata/libahci.c
++++ b/drivers/ata/libahci.c
+@@ -1654,6 +1654,8 @@ static void ahci_postreset(struct ata_link *link, unsigned int *class)
+ 	}
+ }
+ 
++void bsa_scsi_sata_fill_dma_addr(struct scatterlist *sg);
++
+ static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)
+ {
+ 	struct scatterlist *sg;
+@@ -1663,6 +1665,7 @@ static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)
+ 	/*
+ 	 * Next, the S/G list.
+ 	 */
++	bsa_scsi_sata_fill_dma_addr(qc->sg);
+ 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+ 		dma_addr_t addr = sg_dma_address(sg);
+ 		u32 sg_len = sg_dma_len(sg);
+diff --git a/drivers/ata/sata_sil24.c b/drivers/ata/sata_sil24.c
+index 142e70bfc498..e7cf8b1f193b 100644
+--- a/drivers/ata/sata_sil24.c
++++ b/drivers/ata/sata_sil24.c
+@@ -687,6 +687,8 @@ static int sil24_softreset(struct ata_link *link, unsigned int *class,
+ 	return -EIO;
+ }
+ 
++void bsa_scsi_sata_fill_dma_addr(struct scatterlist *sg);
++
+ static int sil24_hardreset(struct ata_link *link, unsigned int *class,
+ 			   unsigned long deadline)
+ {
+@@ -773,6 +775,7 @@ static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
+ 	struct sil24_sge *last_sge = NULL;
+ 	unsigned int si;
+ 
++    bsa_scsi_sata_fill_dma_addr(qc->sg);
+ 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+ 		sge->addr = cpu_to_le64(sg_dma_address(sg));
+ 		sge->cnt = cpu_to_le32(sg_dma_len(sg));
+diff --git a/drivers/firmware/efi/libstub/efi-stub-helper.c b/drivers/firmware/efi/libstub/efi-stub-helper.c
+index bfa30625f5d0..6feb98f97761 100644
+--- a/drivers/firmware/efi/libstub/efi-stub-helper.c
++++ b/drivers/firmware/efi/libstub/efi-stub-helper.c
+@@ -19,6 +19,7 @@
+ bool efi_nochunk;
+ bool efi_nokaslr = !IS_ENABLED(CONFIG_RANDOMIZE_BASE);
+ bool efi_novamap;
++bool efi_acsforcevamap = false;
+ 
+ static bool efi_noinitrd;
+ static bool efi_nosoftreserve;
+@@ -78,6 +79,7 @@ efi_status_t efi_parse_options(char const *cmdline)
+ 		} else if (!strcmp(param, "efi") && val) {
+ 			efi_nochunk = parse_option_str(val, "nochunk");
+ 			efi_novamap |= parse_option_str(val, "novamap");
++			efi_acsforcevamap |= parse_option_str(val, "acsforcevamap");
+ 
+ 			efi_nosoftreserve = IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
+ 					    parse_option_str(val, "nosoftreserve");
+diff --git a/drivers/firmware/efi/libstub/efistub.h b/drivers/firmware/efi/libstub/efistub.h
+index 212687c30d79..080962f91baf 100644
+--- a/drivers/firmware/efi/libstub/efistub.h
++++ b/drivers/firmware/efi/libstub/efistub.h
+@@ -38,6 +38,7 @@ extern bool efi_nochunk;
+ extern bool efi_nokaslr;
+ extern int efi_loglevel;
+ extern bool efi_novamap;
++extern bool efi_acsforcevamap;
+ 
+ extern const efi_system_table_t *efi_system_table;
+ 
+diff --git a/drivers/firmware/efi/libstub/fdt.c b/drivers/firmware/efi/libstub/fdt.c
+index 70e9789ff9de..a9fab1a2aef9 100644
+--- a/drivers/firmware/efi/libstub/fdt.c
++++ b/drivers/firmware/efi/libstub/fdt.c
+@@ -232,13 +232,30 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
+ 	unsigned long fdt_addr = 0;
+ 	unsigned long fdt_size = 0;
+ 
+-	if (!efi_novamap) {
++    if(efi_acsforcevamap) {
++        efi_info("ACS:acsforcevamap is 1\n");
++	}
++	else {
++        efi_info("ACS:acsforcevamap is 0\n");
++	}
++
++    if(efi_novamap) {
++        efi_info("ACS:efi_novamap is 1\n");
++	}
++	else {
++        efi_info("ACS:efi_novamap is 0\n");
++	}
++
++
++	if (!efi_novamap || efi_acsforcevamap) {
++        efi_info("ACS:Alloc memory for virtual address map ...");
+ 		status = efi_alloc_virtmap(&priv.runtime_map, &desc_size,
+ 					   &desc_ver);
+ 		if (status != EFI_SUCCESS) {
+ 			efi_err("Unable to retrieve UEFI memory map.\n");
+ 			return status;
+ 		}
++		efi_info(" Success\n");
+ 	}
+ 
+ 	/*
+@@ -294,7 +311,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
+ 	if (status == EFI_SUCCESS) {
+ 		efi_set_virtual_address_map_t *svam;
+ 
+-		if (efi_novamap)
++		if (efi_novamap && !efi_acsforcevamap)
+ 			return EFI_SUCCESS;
+ 
+ 		/* Install the new virtual address map */
+diff --git a/drivers/iommu/Makefile b/drivers/iommu/Makefile
+index 769e43d780ce..ba050e3f3c3b 100644
+--- a/drivers/iommu/Makefile
++++ b/drivers/iommu/Makefile
+@@ -5,6 +5,7 @@ obj-$(CONFIG_IOMMU_API) += iommu-traces.o
+ obj-$(CONFIG_IOMMU_API) += iommu-sysfs.o
+ obj-$(CONFIG_IOMMU_DEBUGFS) += iommu-debugfs.o
+ obj-$(CONFIG_IOMMU_DMA) += dma-iommu.o
++obj-$(CONFIG_IOMMU_DMA) += bsa-dma-iommu.o
+ obj-$(CONFIG_IOMMU_IO_PGTABLE) += io-pgtable.o
+ obj-$(CONFIG_IOMMU_IO_PGTABLE_ARMV7S) += io-pgtable-arm-v7s.o
+ obj-$(CONFIG_IOMMU_IO_PGTABLE_LPAE) += io-pgtable-arm.o
+diff --git a/drivers/iommu/bsa-dma-iommu.c b/drivers/iommu/bsa-dma-iommu.c
+new file mode 100644
+index 000000000000..d8c61b40b993
+--- /dev/null
++++ b/drivers/iommu/bsa-dma-iommu.c
+@@ -0,0 +1,238 @@
++/*
++ * The IOMMU-API to BSA Architecture Compliance Suite glue layer.
++ *
++ * Copyright (C) 2021 ARM Ltd.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <linux/debugfs.h>
++#include <linux/device.h>
++#include <dma-iommu.h>
++#include <linux/gfp.h>
++#include <linux/huge_mm.h>
++#include <linux/iommu.h>
++#include <linux/iova.h>
++#include <linux/irq.h>
++#include <linux/memblock.h>
++#include <linux/mm.h>
++#include <linux/pci.h>
++#include <linux/scatterlist.h>
++#include <linux/vmalloc.h>
++#include <linux/property.h>
++#include <linux/libata.h>
++
++#include <scsi/scsi_device.h>
++#include <scsi/scsi_host.h>
++#include <scsi/scsi_transport.h>
++#include <linux/bsa-iommu.h>
++
++
++bsa_iova_array	g_bsa_iova_array[BSA_IOVA_DMA_ARRAY_LEN];
++
++struct iommu_domain *g_bsa_iommu_domain = NULL;
++
++struct iova_domain *cookie_iovad_bsa(struct iommu_domain *domain);
++
++/**
++  @brief   This API returns the DMA address for a given index from the active IOVA table.
++           1. Caller       -  Platform Abstraction Layer.
++           2. Prerequisite -  None
++  @param   dev   - device whose domain IOVA table is checked
++  @param   base     - return DMA address base
++  @param   in_node  - return first entry if NULL, else continue from in_node
++  @return  length of the DMA range
++**/
++void *
++bsa_iommu_dma_get_iova(struct device *dev, unsigned long long *base, unsigned long int *size,
++    phys_addr_t *phy_addr, void *in_node)
++{
++	struct iova_domain *iovad = cookie_iovad_bsa(iommu_get_domain_for_dev(dev));
++	unsigned long shift;
++	struct rb_node *node;
++
++    if(!iovad)
++        return NULL;
++
++    shift = iova_shift(iovad);
++
++	if (in_node == NULL)
++		node = rb_last(&iovad->rbroot);
++	else
++		node = rb_prev((struct rb_node *)in_node);
++
++	while (node)
++	{
++		struct iova *iova = container_of(node, struct iova, node);
++		unsigned long pfn_lo = iova->pfn_lo;
++		unsigned long pfn_hi = iova->pfn_hi + 1;
++		phys_addr_t phys = iommu_iova_to_phys(iommu_get_domain_for_dev(dev),
++					pfn_lo << shift);
++
++		if (phys) {
++			*base = pfn_lo << shift;
++			*size = (pfn_hi - pfn_lo) << shift;
++			*phy_addr = phys;
++			break;
++		}
++		node = rb_prev(node);
++	}
++	return (void *)node;
++}
++EXPORT_SYMBOL(bsa_iommu_dma_get_iova);
++
++static int bsa_get_sata_dev(void)
++{
++   int ret = -1;
++   struct Scsi_Host   *shost;
++   struct ata_port    *ap;
++   struct scsi_device *sdev = NULL;
++   unsigned int i = 0;
++
++   do {
++       shost = scsi_host_lookup(i++);
++       if (shost) {
++           sdev = NULL;
++           ap = ata_shost_to_port(shost);
++           if ((ap == NULL) || (ap->dev == NULL))
++               continue; //Not a ATA port
++           if ((ap->scsi_host == NULL) || (ap->scsi_host != shost))
++               continue; //Not a valid ATA Port
++           do {
++               /* get the device connected to this host */
++               sdev = __scsi_iterate_devices(shost, sdev);
++               if (sdev) {
++                    g_bsa_iommu_domain = iommu_get_domain_for_dev(ap->dev);
++                    ret = 0;
++               }
++           } while(sdev);
++           scsi_host_put(shost);
++       }
++   } while(shost);
++
++    return ret;
++}
++
++/**
++  @brief   This API is used to indicate which device IOMMU transactions are to be monitored.
++           1. Caller       -  Platform Abstraction Layer.
++           2. Prerequisite -  None
++  @param   dev   - device whose domain IOVA table is checked
++  @return  None
++**/
++void
++bsa_iommu_dev_start_monitor(struct device *dev)
++{
++	/* We only monitor 1 domain for now */
++
++	g_bsa_iommu_domain = iommu_get_domain_for_dev(dev);
++}
++EXPORT_SYMBOL(bsa_iommu_dev_start_monitor);
++
++void
++bsa_iommu_dev_stop_monitor(struct device *dev)
++{
++	g_bsa_iommu_domain = NULL;
++}
++EXPORT_SYMBOL(bsa_iommu_dev_stop_monitor);
++
++int
++bsa_is_domain_monitored(struct iommu_domain *dom)
++{
++    int ret = 0;
++
++    if (g_bsa_iommu_domain == NULL )
++        ret = bsa_get_sata_dev();
++
++	   if (g_bsa_iommu_domain == dom)
++		   return 1;
++
++	   return 0;
++}
++
++void
++bsa_iommu_iova_save_addr(dma_addr_t addr, unsigned int length)
++{
++
++	static unsigned int index = 0;
++
++	g_bsa_iova_array[index].dma_addr = addr;
++	g_bsa_iova_array[index].dma_len = length;
++
++	index++;
++
++	if (index >= BSA_IOVA_DMA_ARRAY_LEN)
++		index = 0;
++}
++
++/**
++  @brief   This API returns the DMA address for a given index from the saved IOVA addresses.
++           1. Caller       -  Platform Abstraction Layer.
++           2. Prerequisite -  bsa_iommu_iova_save_addr.
++  @param   index  - index of the entry
++  @param   addr   - dma address returned
++  @return  length of the DMA range
++**/
++unsigned int
++bsa_iommu_iova_get_addr(unsigned int index, dma_addr_t *addr)
++{
++
++	if (index >= BSA_IOVA_DMA_ARRAY_LEN)
++		return 0;
++
++	*addr = g_bsa_iova_array[index].dma_addr;
++
++	return g_bsa_iova_array[index].dma_len;
++
++}
++EXPORT_SYMBOL(bsa_iommu_iova_get_addr);
++
++/**
++  @brief   This API gets the DMA attributes of a device.
++           1. Caller       -  Platform Abstraction Layer.
++           2. Prerequisite -  None.
++  @param   dev  - device structure.
++  @return  Coherent or Not.
++**/
++enum
++dev_dma_attr bsa_dev_get_dma_attr(struct device *dev)
++{
++
++	return device_get_dma_attr(dev);
++}
++EXPORT_SYMBOL(bsa_dev_get_dma_attr);
++
++/* BSA ACS Hook functions to export the DMA address used by the controller */
++dma_addr_t bsa_dma_addr;
++unsigned int bsa_dma_len;
++
++int
++bsa_scsi_sata_get_dma_addr(struct ata_port *ap, dma_addr_t *dma_addr, unsigned int *dma_len)
++{
++        //Not used struct sil24_port_priv *pp = ap->private_data;
++
++        *dma_addr = bsa_dma_addr;
++        *dma_len  = bsa_dma_len;
++
++        return 0;
++}
++EXPORT_SYMBOL(bsa_scsi_sata_get_dma_addr);
++
++void
++bsa_scsi_sata_fill_dma_addr(struct scatterlist *sg)
++{
++
++        bsa_dma_addr = cpu_to_le64(sg_dma_address(sg));
++        bsa_dma_len  = cpu_to_le32(sg_dma_len(sg));
++}
++EXPORT_SYMBOL(bsa_scsi_sata_fill_dma_addr);
+\ No newline at end of file
+diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
+index 4b1a88f514c9..c89c84bf6055 100644
+--- a/drivers/iommu/dma-iommu.c
++++ b/drivers/iommu/dma-iommu.c
+@@ -70,6 +70,14 @@ struct iommu_dma_cookie {
+ 	struct mutex			mutex;
+ };
+ 
++struct iova_domain *cookie_iovad_bsa(struct iommu_domain *domain)
++{
++    if (domain)
++	    return &((struct iommu_dma_cookie *)domain->iova_cookie)->iovad;
++    return NULL;
++}
++
++
+ static DEFINE_STATIC_KEY_FALSE(iommu_deferred_attach_enabled);
+ bool iommu_dma_forcedac __read_mostly;
+ 
+diff --git a/drivers/iommu/iommu.c b/drivers/iommu/iommu.c
+index 3a67e636287a..6eac418ac247 100644
+--- a/drivers/iommu/iommu.c
++++ b/drivers/iommu/iommu.c
+@@ -38,6 +38,7 @@
+ 
+ #include "iommu-sva.h"
+ #include "iommu-priv.h"
++#include <linux/bsa-iommu.h>
+ 
+ static struct kset *iommu_group_kset;
+ static DEFINE_IDA(iommu_group_ida);
+@@ -2475,6 +2476,9 @@ static int __iommu_map(struct iommu_domain *domain, unsigned long iova,
+ 
+ 	pr_debug("map: iova 0x%lx pa %pa size 0x%zx\n", iova, &paddr, size);
+ 
++	if (bsa_is_domain_monitored(domain))
++        bsa_iommu_iova_save_addr((dma_addr_t)iova, (unsigned int)size);
++
+ 	while (size) {
+ 		size_t mapped = 0;
+ 
+diff --git a/drivers/irqchip/irq-gic-v3.c b/drivers/irqchip/irq-gic-v3.c
+index f59ac9586b7b..a0a164d5fa06 100644
+--- a/drivers/irqchip/irq-gic-v3.c
++++ b/drivers/irqchip/irq-gic-v3.c
+@@ -64,6 +64,8 @@ struct gic_chip_data {
+ 	unsigned int		ppi_nr;
+ 	struct partition_desc	**ppi_descs;
+ };
++/* ACS GIC Patch */
++struct irq_domain *acs_irq_domain = NULL;
+ 
+ #define T241_CHIPS_MAX		4
+ static void __iomem *t241_dist_base_alias[T241_CHIPS_MAX] __read_mostly;
+@@ -174,6 +176,14 @@ static enum gic_intid_range get_intid_range(struct irq_data *d)
+ 	return __get_intid_range(d->hwirq);
+ }
+ 
++struct irq_domain* acs_get_irq_domain(void)
++{
++   if (acs_irq_domain)
++	   return acs_irq_domain;
++   return 0;
++}
++EXPORT_SYMBOL(acs_get_irq_domain);
++
+ static inline unsigned int gic_irq(struct irq_data *d)
+ {
+ 	return d->hwirq;
+@@ -1646,6 +1656,10 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
+ 		if (ret)
+ 			return ret;
+ 	}
++    /* ACS GIC Patch */
++    if (domain) {
++        acs_irq_domain = domain;
++    }
+ 
+ 	return 0;
+ }
+diff --git a/drivers/of/base.c b/drivers/of/base.c
+index 8d93cb6ea9cd..412421e817d6 100644
+--- a/drivers/of/base.c
++++ b/drivers/of/base.c
+@@ -239,6 +239,7 @@ struct device_node *__of_find_all_nodes(struct device_node *prev)
+ 	}
+ 	return np;
+ }
++EXPORT_SYMBOL(__of_find_all_nodes);
+ 
+ /**
+  * of_find_all_nodes - Get next node in global list
+diff --git a/include/linux/bsa-iommu.h b/include/linux/bsa-iommu.h
+new file mode 100644
+index 000000000000..81a516e5b2c9
+--- /dev/null
++++ b/include/linux/bsa-iommu.h
+@@ -0,0 +1,50 @@
++/*
++ * The IOMMU-API to BSA Architecture Compliance Suite glue layer.
++ *
++ * Copyright (C) 2021 ARM Ltd.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef __BSA_IOMMU_H
++#define __BSA_IOMMU_H
++
++#ifdef CONFIG_IOMMU_DMA
++#include <linux/iommu.h>
++
++#include <linux/vmalloc.h>
++
++
++#define BSA_IOVA_DMA_ARRAY_LEN		4
++
++typedef struct _bsa_iova_array_ {
++	dma_addr_t	dma_addr;
++	unsigned int	dma_len;
++}bsa_iova_array;
++
++void *bsa_iommu_dma_get_iova(struct device *dev, unsigned long long *base, unsigned long int *size,
++    phys_addr_t *phy_addr, void *in_node);
++
++void bsa_iommu_dev_start_monitor(struct device *dev);
++
++void bsa_iommu_dev_stop_monitor(struct device *dev);
++int bsa_is_domain_monitored(struct iommu_domain *dom);
++
++void bsa_iommu_iova_save_addr(dma_addr_t addr, unsigned int length);
++
++unsigned int bsa_iommu_iova_get_addr(unsigned int index, dma_addr_t *addr);
++
++enum dev_dma_attr bsa_dev_get_dma_attr(struct device *dev);
++
++#endif
++#endif
+\ No newline at end of file
+diff --git a/include/linux/irqdomain.h b/include/linux/irqdomain.h
+index 51c254b7fec2..cca72780f42b 100644
+--- a/include/linux/irqdomain.h
++++ b/include/linux/irqdomain.h
+@@ -627,5 +627,7 @@ static inline struct irq_domain *irq_find_matching_fwnode(
+ 	return NULL;
+ }
+ #endif /* !CONFIG_IRQ_DOMAIN */
++/* ACS GIC Patch */
++struct irq_domain* acs_get_irq_domain(void);
+ 
+ #endif /* _LINUX_IRQDOMAIN_H */
+diff --git a/kernel/irq/irqdomain.c b/kernel/irq/irqdomain.c
+index 0bdef4fe925b..7d1591f7600f 100644
+--- a/kernel/irq/irqdomain.c
++++ b/kernel/irq/irqdomain.c
+@@ -1552,7 +1552,7 @@ int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
+ 
+ 	return ret;
+ }
+-EXPORT_SYMBOL_GPL(__irq_domain_alloc_irqs);
++EXPORT_SYMBOL(__irq_domain_alloc_irqs);
+ 
+ /* The irq_data was moved, fix the revmap to refer to the new location */
+ static void irq_domain_fix_revmap(struct irq_data *d)
+diff --git a/mm/init-mm.c b/mm/init-mm.c
+index cfd367822cdd..a197b216f68c 100644
+--- a/mm/init-mm.c
++++ b/mm/init-mm.c
+@@ -6,6 +6,7 @@
+ #include <linux/list.h>
+ #include <linux/cpumask.h>
+ #include <linux/mman.h>
++#include <linux/module.h>
+ #include <linux/pgtable.h>
+ 
+ #include <linux/atomic.h>
+@@ -49,6 +50,7 @@ struct mm_struct init_mm = {
+ #endif
+ 	INIT_MM_CONTEXT(init_mm)
+ };
++EXPORT_SYMBOL(init_mm);
+ 
+ void setup_initial_init_mm(void *start_code, void *end_code,
+ 			   void *end_data, void *brk)
+-- 
+2.34.1
+
