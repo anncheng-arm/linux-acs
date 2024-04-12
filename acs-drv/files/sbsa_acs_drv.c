@@ -34,6 +34,7 @@ test_msg_parms_t msg_params;
 static int len = 0;
 
 unsigned int  g_sbsa_level = 4;
+unsigned int  g_sbsa_only_level = 0;
 unsigned int  g_print_level = 3;
 unsigned int  *g_skip_test_num;
 unsigned int  g_num_skip = 3;
