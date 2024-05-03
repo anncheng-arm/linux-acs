@@ -572,26 +572,6 @@ pal_pcie_dev_p2p_support(uint32_t seg, uint32_t bus, uint32_t dev, uint32_t fn)
   return 1;
 }
 
-/**
-  @brief   This API checks the PCIe device multifunction support
-           1. Caller       -  Test Suite
-  @param   bdf      - PCIe BUS/Device/Function
-  @return  1 - Multifunction feature not supported 0 - Multifunction feature supported
-**/
-uint32_t
-pal_pcie_multifunction_support(uint32_t seg, uint32_t bus, uint32_t dev, uint32_t fn)
-{
-  struct pci_dev *pdev;
-
-  pdev = pci_get_domain_bus_and_slot(seg, bus, PCI_DEVFN(dev, fn));
-  if(pdev == NULL)
-      return 1;
-
-  if (!pdev->multifunction)
-      return 1;
-
-  return 0;
-}
 
 uint32_t pal_pcie_io_read_cfg(uint32_t bdf, uint32_t offset, uint32_t *data)
 {
@@ -635,22 +615,6 @@ pal_pcie_is_cache_present(uint32_t seg, uint32_t bus, uint32_t dev, uint32_t fn)
   return 1;  /* SBSA has it return 0  TODO */
 }
 
-/**
-    @brief   Gets RP support of transaction forwarding.
-
-    @param   bus        PCI bus address
-    @param   dev        PCI device address
-    @param   fn         PCI function number
-    @param   seg        PCI segment number
-
-    @return  0 if rp not involved in transaction forwarding
-             1 if rp is involved in transaction forwarding
-**/
-uint32_t
-pal_pcie_get_rp_transaction_frwd_support(uint32_t seg, uint32_t bus, uint32_t dev, uint32_t fn)
-{
-  return 1;
-}
 
 /**
   @brief  Returns whether a PCIe Function is an on-chip peripheral or not

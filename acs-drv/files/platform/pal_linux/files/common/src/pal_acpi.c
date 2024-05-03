@@ -71,3 +71,5 @@ pal_target_is_dt()
 {
   return 0;
 }
+
+MODULE_LICENSE("GPL");

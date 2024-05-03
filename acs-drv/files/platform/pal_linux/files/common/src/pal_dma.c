@@ -95,15 +95,6 @@ pal_dma_mem_free(void *buffer, addr_t mem_dma, unsigned int length, void *port, 
 
 
 void
-pal_dma_poll_for_completion(unsigned int timeout)
-{
-
-        /* scsi execute takes care of this. */
-        return;
-
-}
-
-void
 pal_dma_create_info_table(DMA_INFO_TABLE *dma_info_table)
 {
 
@@ -187,30 +178,6 @@ pal_dma_start_from_device(void *dma_target_buf, unsigned int length,
 #endif
 
         return result;
-}
-
-unsigned int
-pal_dma_start_to_device(void *dma_source_buf, unsigned int length,
-                         void *host, void *target, unsigned int timeout)
-{
-
-        unsigned char cmd[10];
-        int ret;
-        struct scsi_device *sdev = (struct scsi_device *)target;
-
-        memset(cmd, 0, 10);
-
-        cmd[0] = WRITE_10;
-        cmd[8] = 1;  //one block only for now
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,2,0)
-        ret = scsi_execute_cmd(sdev, cmd, DMA_TO_DEVICE, dma_source_buf, length,
-                               timeout, 1, NULL);
-#else
-        ret = scsi_execute_req(sdev, cmd, DMA_TO_DEVICE, dma_source_buf, length,
-                               NULL, timeout, 1, NULL);
-#endif
-
-        return 0;
 }
 
 

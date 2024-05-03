@@ -26,9 +26,11 @@
 
 #include "common/include/pal_linux.h"
 #include "sbsa/include/sbsa_pal_linux.h"
+#include "val/sbsa/include/sbsa_pal_interface.h"
 
 #define NOT_IMPLEMENTED    0x4B1D
 
+acpi_status user_function(acpi_handle handle, uint32_t level, void *context, void **return_value);
 /**
   @brief  This function is called by the val function pal_get_device_path
           when the hid type is found

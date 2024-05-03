@@ -112,15 +112,6 @@ pal_smmu_check_device_iova(void *port, unsigned long long dma_addr)
 }
 
 uint32_t
-pal_smmu_max_pasids(uint64_t smmu_base)
-{
-  uint32_t reg = pal_mmio_read(smmu_base + SMMU_V3_IDR1);
-  uint32_t pasid_bits = reg >> SMMU_V3_IDR1_PASID_SHIFT & SMMU_V3_IDR1_PASID_MASK;
-  if(pasid_bits == 0)
-     return 0;
-  return (1 << pasid_bits);
-}
-uint32_t
 pal_smmu_create_pasid_entry(uint64_t smmu_base, uint32_t pasid)
 {
   return 0;
