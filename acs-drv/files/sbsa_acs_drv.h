@@ -40,7 +40,7 @@
 #define PE_INFO_TBL_SZ             16384    /* Supports maximum 400 PEs [40 B each + 4 B header] */
 #define IOVIRT_INFO_TBL_SZ         1048576  /* Supports maximum 2400 iort nodes [268+32*5 B each + 24 B header] */
 #define PERIPHERAL_INFO_TBL_SZ     8192     /* Supports maximum 145 PCIe peripheral device (anykind) [56 B each + 16 B header] */
-#define PCIE_INFO_TBL_SZ           512      /* Supports maximum 20 PCIe ECAM block [24 B each + 4 B header] */
+#define PCIE_INFO_TBL_SZ           1024     /* Supports maximum 40 PCIe ECAM block [24 B each + 4 B header] */
 #define DMA_INFO_TBL_SZ            1024     /* Supports maximum 30 DMA ctrl [32 B each + 4 B header] */
 
 typedef

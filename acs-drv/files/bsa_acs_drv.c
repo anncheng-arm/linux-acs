@@ -67,6 +67,8 @@ char *g_msg_buf;
 int tail_msg;
 extern int num_msg;
 
+int val_glue_execute_command(void);
+
 int
 val_glue_execute_command(void)
 {

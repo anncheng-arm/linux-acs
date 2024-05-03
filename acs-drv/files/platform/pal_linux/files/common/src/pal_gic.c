@@ -95,30 +95,3 @@ void pal_gic_free_irq(unsigned int irq_num, unsigned int mapped_irq_num)
 {
     free_irq(mapped_irq_num, NULL);
 }
-
-/* Placeholder for MSI related implementation*/
-uint32_t pal_gic_request_msi(unsigned int its_id, unsigned int device_id,
-                             unsigned int int_id, unsigned int msi_index,
-                             unsigned int *msi_addr, unsigned int *msi_data)
-{
-  return 0;
-}
-
-/* Placeholder for MSI related implementation*/
-void pal_gic_free_msi(unsigned int its_id, unsigned int device_id,
-                      unsigned int int_id, unsigned int msi_index)
-{
-  return;
-}
-
-/* Placeholder for ITS Configuration */
-uint32_t pal_gic_its_configure(void)
-{
-  return 0;
-}
-
-/* Placeholder for returning max LPI supported */
-uint32_t pal_gic_get_max_lpi_id(void)
-{
-  return 0;
-}

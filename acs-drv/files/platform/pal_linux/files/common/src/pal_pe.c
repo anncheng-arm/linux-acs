@@ -95,10 +95,6 @@ pal_pe_install_esr(unsigned int ExceptionType,  void (*esr)(unsigned long long, 
   return 0; /* IN SBSA it is 1 TODO */
 }
 
-void
-pal_pe_increment_elr(unsigned long long offset)
-{
-}
 
 void
 pal_pe_data_cache_ops_by_va(unsigned long long addr, unsigned type)

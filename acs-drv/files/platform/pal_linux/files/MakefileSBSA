@@ -30,7 +30,7 @@ sbsa_acs_pal-objs += $(COMMON_PAL_SRC)/pal_misc.o \
     $(COMMON_PAL_SRC)/pal_pe.o   $(COMMON_PAL_SRC)/pal_pcie.o   $(COMMON_PAL_SRC)/pal_pcie_enumeration.o \
     $(COMMON_PAL_SRC)/pal_smmu.o $(COMMON_PAL_SRC)/pal_iovirt.o $(COMMON_PAL_SRC)/pal_peripherals.o \
     $(COMMON_PAL_SRC)/pal_dma.o  $(COMMON_PAL_SRC)/pal_acpi.o $(COMMON_PAL_SRC)/pal_gic.o \
-    $(SBSA_PAL_SRC)/sbsa_pal_iovirt.o $(COMMON_PAL_SRC)/pal_exerciser.o
+    $(SBSA_PAL_SRC)/sbsa_pal_iovirt.o $(COMMON_PAL_SRC)/pal_exerciser.o $(SBSA_PAL_SRC)/sbsa_pal_pcie.o
 
 ccflags-y=-I$(PWD)/$(ACS_DIR)/val/include -I$(PWD)/$(ACS_DIR)/include -I$(PWD) -I$(PWD)/../../  -I$(PWD)/../../../  -DTARGET_LINUX -DBUILD_SBSA -Wall -Werror
 
